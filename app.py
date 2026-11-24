@@ -2,9 +2,12 @@ from fastapi import FastAPI, Form
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.concurrency import run_in_threadpool
 from ai_utils import generate_story, generate_ghibli_image
+import logging
 import os
+import re
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -49,36 +52,38 @@ form.addEventListener('submit', async (event) => {
 # STORY GENERATION ENDPOINT
 # -------------------------------
 @app.post("/generate-story")
-async def story_endpoint(prompt: str = Form(...)):
+async def story_endpoint(prompt: str = Form(..., min_length=1, max_length=1000)):
     try:
         # generate_story is blocking — run in a threadpool
         story_text = await run_in_threadpool(generate_story, prompt)
         return {"story": story_text}
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+    except Exception as exc:
+        logger.warning("Generation failed: %s", type(exc).__name__)
+        return JSONResponse(content={"error": "Generation is temporarily unavailable."}, status_code=502)
 
 # -------------------------------
 # IMAGE GENERATION ENDPOINT
 # -------------------------------
 @app.post("/generate-ghibli-image")
-async def image_endpoint(prompt: str = Form(...)):
+async def image_endpoint(prompt: str = Form(..., min_length=1, max_length=1000)):
     try:
         # image generation can be slow/blocking — run in threadpool
         image_path = await run_in_threadpool(generate_ghibli_image, prompt)
         filename = os.path.basename(image_path)
         return {"image_url": f"/get-image/{filename}"}
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+    except Exception as exc:
+        logger.warning("Generation failed: %s", type(exc).__name__)
+        return JSONResponse(content={"error": "Generation is temporarily unavailable."}, status_code=502)
 
 # -------------------------------
 # SERVE GENERATED IMAGES
 # -------------------------------
 @app.get("/get-image/{filename}")
 async def get_image(filename: str):
-    # sanitize filename to avoid path traversal
-    safe_filename = os.path.basename(filename)
-    filepath = os.path.join("images", safe_filename)
-    if os.path.exists(filepath):
+    if not re.fullmatch(r"[0-9a-f]{32}\.png", filename):
+        return JSONResponse(content={"error": "Image not found"}, status_code=404)
+    filepath = os.path.join("images", filename)
+    if os.path.isfile(filepath):
         return FileResponse(filepath)
     else:
         return JSONResponse(content={"error": "Image not found"}, status_code=404)
