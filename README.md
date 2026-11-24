@@ -1,3 +1,5 @@
+> **Browser demo.** After starting FastAPI, open `http://127.0.0.1:8000/` to submit a story idea and generate its illustration. `/docs` remains available for testing the API separately.
+
 # CareTales
 
 A FastAPI prototype that turns a text prompt into a short illustrated story. It uses Gemini for story text and Hugging Face inference for images.
