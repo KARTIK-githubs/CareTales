@@ -9,20 +9,15 @@ import base64
 
 load_dotenv()
 
-# -------------------------------
-# CLIENT INITIALIZATION
-# -------------------------------
-gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
-hf = InferenceClient(api_key=os.getenv("HF_TOKEN"))  # Free public Hugging Face client
 
 # -------------------------------
 # STORY GENERATION
 # -------------------------------
 def generate_story(prompt: str) -> str:
     """Generate a child-friendly story using Gemini API"""
-    response = gemini.models.generate_content(
-        model="gemini-2.5-flash",
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    response = client.models.generate_content(
+    model="gemini-2.5-flash",
         contents=f"Write a magical, heartwarming, child-friendly story about: {prompt}."
     )
 
@@ -61,8 +56,8 @@ def generate_ghibli_image(prompt: str) -> str:
     """Generate a Ghibli-style image using free Hugging Face model"""
     image_prompt = f"{prompt}, Studio Ghibli style, soft lighting, warm colors, expressive eyes"
     try:
-        result = hf.text_to_image(
-            prompt=image_prompt,
+        result = InferenceClient(api_key=os.getenv("HF_TOKEN")).text_to_image(
+    prompt=image_prompt,
             model="stabilityai/sdxl-turbo"  # Free model
         )
     except Exception as e:
